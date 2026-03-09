@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 import { connectDB } from "./lib/db.js";
@@ -33,14 +34,28 @@ app.use("/api/messages", messageRoutes);
 
 // Serve Vite frontend build in production
 if (process.env.NODE_ENV === "production") {
-  // __dirname is .../backend, so this resolves to .../frontend/dist
-  const frontendDist = path.join(__dirname, "..", "frontend", "dist");
+  // Try multiple possible dist locations for local + Vercel bundles
+  const candidatePaths = [
+    path.join(__dirname, "..", "frontend", "dist"),
+    path.join(__dirname, "frontend", "dist"),
+    path.join(process.cwd(), "frontend", "dist"),
+  ];
 
-  app.use(express.static(frontendDist));
+  const frontendDist = candidatePaths.find((p) =>
+    fs.existsSync(path.join(p, "index.html"))
+  );
 
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(frontendDist, "index.html"));
-  });
+  console.log("Resolved frontend dist path:", frontendDist);
+
+  if (frontendDist) {
+    app.use(express.static(frontendDist));
+
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(frontendDist, "index.html"));
+    });
+  } else {
+    console.error("frontend/dist/index.html not found in any known location.");
+  }
 }
 
 // Error handler
