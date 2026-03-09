@@ -21,39 +21,43 @@ const PORT = process.env.PORT || 5001;
 app.use(express.json());
 app.use(cookieParser());
 
-// API routes
+// 1. API Routes (Inki priority sab se upar honi chahiye)
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
-// --- FRONTEND SERVING LOGIC (FIXED) ---
-
-// Vercel par aksar yehi path kaam karta hai
+// 2. Frontend Serving Logic
 const frontendDist = path.join(process.cwd(), "frontend", "dist");
 
+// Debugging log jo Vercel dashboard mein nazar aaye ga
+console.log("Looking for frontend at:", frontendDist);
+
 if (fs.existsSync(path.join(frontendDist, "index.html"))) {
-    console.log("Found frontend dist at:", frontendDist);
+    // Static files serve karein
     app.use(express.static(frontendDist));
-    
+
+    // Baqi sari requests ko index.html par bhej dein (Frontend Routing)
     app.get("*", (req, res) => {
-        // Sirf API routes ko chor kar baqi sab frontend par bhejein
-        if (!req.path.startsWith('/api')) {
+        // Check taake galti se API calls yahan na phans jayein
+        if (!req.path.startsWith("/api")) {
             res.sendFile(path.join(frontendDist, "index.html"));
         }
     });
 } else {
-    // Agar dist folder na mile toh error log karein
-    console.error("CRITICAL: frontend/dist/index.html not found!");
-    app.get("/", (req, res) => {
-        res.send("Backend is running, but Frontend build (dist) is missing. Check your Build Command.");
+    // Agar build fail hui ya folder na mila toh ye error nazar aaye ga
+    app.get("*", (req, res) => {
+        if (!req.path.startsWith("/api")) {
+            res.status(404).send(`Frontend build not found at: ${frontendDist}. Please check Vercel Build Logs.`);
+        }
     });
 }
 
-// Error handler
+// 3. Error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: "Something went wrong!", error: err.message });
 });
 
+// 4. Start server
 app.listen(PORT, () => {
     console.log(`Server is running on PORT: ${PORT}`);
     connectDB();
