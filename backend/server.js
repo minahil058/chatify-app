@@ -26,8 +26,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
 // 2. Frontend Serving Logic
-const frontendDist = path.join(__dirname, "../frontend/dist");
-// Debugging log jo Vercel dashboard mein nazar aaye ga
+const frontendDist = path.resolve(__dirname, "../frontend/dist");// Debugging log jo Vercel dashboard mein nazar aaye ga
 console.log("Looking for frontend at:", frontendDist);
 
 if (fs.existsSync(path.join(frontendDist, "index.html"))) {
