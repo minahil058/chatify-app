@@ -13,7 +13,6 @@ dotenv.config();
 
 const app = express();
 
-// ESM-safe __dirname / __filename
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -22,50 +21,40 @@ const PORT = process.env.PORT || 5001;
 app.use(express.json());
 app.use(cookieParser());
 
-// (Optional) debug logging
-app.use((req, res, next) => {
-  console.log(`Incoming Request: ${req.method} ${req.url}`);
-  next();
-});
-
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
-// Serve Vite frontend build in production
-if (process.env.NODE_ENV === "production") {
-  // Try multiple possible dist locations for local + Vercel bundles
-  const candidatePaths = [
-    path.join(__dirname, "..", "frontend", "dist"),
-    path.join(__dirname, "frontend", "dist"),
-    path.join(process.cwd(), "frontend", "dist"),
-  ];
+// --- FRONTEND SERVING LOGIC (FIXED) ---
 
-  const frontendDist = candidatePaths.find((p) =>
-    fs.existsSync(path.join(p, "index.html"))
-  );
+// Vercel par aksar yehi path kaam karta hai
+const frontendDist = path.join(process.cwd(), "frontend", "dist");
 
-  console.log("Resolved frontend dist path:", frontendDist);
-
-  if (frontendDist) {
+if (fs.existsSync(path.join(frontendDist, "index.html"))) {
+    console.log("Found frontend dist at:", frontendDist);
     app.use(express.static(frontendDist));
-
+    
     app.get("*", (req, res) => {
-      res.sendFile(path.join(frontendDist, "index.html"));
+        // Sirf API routes ko chor kar baqi sab frontend par bhejein
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(frontendDist, "index.html"));
+        }
     });
-  } else {
-    console.error("frontend/dist/index.html not found in any known location.");
-  }
+} else {
+    // Agar dist folder na mile toh error log karein
+    console.error("CRITICAL: frontend/dist/index.html not found!");
+    app.get("/", (req, res) => {
+        res.send("Backend is running, but Frontend build (dist) is missing. Check your Build Command.");
+    });
 }
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: "Something went wrong!", error: err.message });
+    console.error(err.stack);
+    res.status(500).json({ message: "Something went wrong!", error: err.message });
 });
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`Server is running on PORT: ${PORT}`);
-  connectDB();
+    console.log(`Server is running on PORT: ${PORT}`);
+    connectDB();
 });
