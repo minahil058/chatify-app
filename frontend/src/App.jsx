@@ -15,12 +15,166 @@ const HomePage = () => {
   );
 };
 
-const LoginPage = () => (
-  <div className="page">
-    <h1>Login</h1>
-    {/* Your login form goes here */}
-  </div>
-);
+const LoginPage = () => {
+  const [formData, setFormData] = React.useState({
+    email: "",
+    password: "",
+  });
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await axios.post("/api/auth/login", formData, {
+        withCredentials: true,
+      });
+      login(res.data);
+      navigate("/");
+    } catch (err) {
+      setError(err.response?.data?.message || "Invalid credentials");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="login-page">
+      <div className="login-container signup-container">
+        {/* Left Side - Form */}
+        <div className="signup-form-section">
+          <div className="signup-form-wrapper">
+            <div className="signup-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <svg viewBox="0 0 24 24" fill="none" className="chat-icon" style={{ width: '36px', height: '36px', color: '#00C2CB' }}>
+                <path
+                  d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span style={{ fontSize: '28px', fontWeight: 'bold', marginLeft: '12px', color: '#f0f6fc', letterSpacing: '-0.5px' }}>Chatify</span>
+            </div>
+            <h1 className="signup-title">Welcome Back</h1>
+            <p className="signup-subtitle">Login to access your account</p>
+
+            {error && <div className="signup-error">{error}</div>}
+
+            <form onSubmit={handleSubmit} className="signup-form">
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <div className="input-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" className="input-icon">
+                    <path
+                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <polyline
+                      points="22,6 12,13 2,6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="password">Password</label>
+                <div className="input-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" className="input-icon">
+                    <rect
+                      x="3"
+                      y="11"
+                      width="18"
+                      height="11"
+                      rx="2"
+                      ry="2"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M7 11V7a5 5 0 0 1 10 0v4"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="signup-button login-button"
+                disabled={isLoading}
+              >
+                {isLoading ? "Signing in..." : "Sign in"}
+              </button>
+            </form>
+
+            <div className="login-footer-link">
+              <button 
+                type="button" 
+                className="secondary-button" 
+                onClick={() => navigate('/signup')}
+              >
+                Don't have an account? Sign up
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side - Illustration */}
+        <div className="signup-illustration login-illustration-bg">
+          <div className="illustration-content">
+            <img src="/login_illustration.png" alt="Login Illustration" className="login-illustration-img" />
+            <h2 className="illustration-title" style={{ marginTop: '30px' }}>Connect Anytime, Anywhere</h2>
+            <div className="feature-badges">
+              <span className="badge">Secure</span>
+              <span className="badge">Fast</span>
+              <span className="badge">Reliable</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const SignUpPage = () => {
   const [formData, setFormData] = React.useState({
@@ -61,8 +215,8 @@ const SignUpPage = () => {
         {/* Left Side - Form */}
         <div className="signup-form-section">
           <div className="signup-form-wrapper">
-            <div className="signup-logo">
-              <svg viewBox="0 0 24 24" fill="none" className="chat-icon">
+            <div className="signup-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <svg viewBox="0 0 24 24" fill="none" className="chat-icon" style={{ width: '36px', height: '36px', color: '#00C2CB' }}>
                 <path
                   d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
                   stroke="currentColor"
@@ -71,6 +225,7 @@ const SignUpPage = () => {
                   strokeLinejoin="round"
                 />
               </svg>
+              <span style={{ fontSize: '28px', fontWeight: 'bold', marginLeft: '12px', color: '#f0f6fc', letterSpacing: '-0.5px' }}>Chatify</span>
             </div>
             <h1 className="signup-title">Create Account</h1>
             <p className="signup-subtitle">Sign up for a new account</p>
@@ -340,35 +495,35 @@ const AppLayout = ({ children }) => {
 
 function App() {
   return (
-    <AppLayout>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <PrivateRoute>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <PrivateRoute>
+            <AppLayout>
               <HomePage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute>
-              <LoginPage />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            <PublicOnlyRoute>
-              <SignUpPage />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AppLayout>
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          <PublicOnlyRoute>
+            <SignUpPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
