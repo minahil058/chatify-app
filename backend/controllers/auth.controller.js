@@ -1,6 +1,8 @@
+import { sendWelcomeEmail } from "../emails/emailHandlers.js";
 import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
+import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req, res) => {
     const { fullName, email, password } = req.body;
@@ -27,10 +29,19 @@ export const signup = async (req, res) => {
         });
 
         if (newUser) {
-            // generate jwt token here
+            // 1. Database mein user save karein aur Token dein
             generateToken(newUser._id, res);
             await newUser.save();
 
+            // 2. Email bhejney ki koshish karein (Safety wrap ke sath)
+            try {
+                await sendWelcomeEmail(newUser.email, newUser.fullName);
+            } catch (emailError) {
+                // Agar email fail ho jaye toh sirf console mein dikhaye, server crash na kare
+                console.log("Welcome email skipped (Resend restriction):", emailError.message);
+            }
+
+            // 3. Response hamesha Success bhejien
             res.status(201).json({
                 _id: newUser._id,
                 fullName: newUser.fullName,
@@ -80,6 +91,33 @@ export const logout = (req, res) => {
         res.status(200).json({ message: "Logged out successfully" });
     } catch (error) {
         console.log("Error in logout controller", error.message);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const updateProfile = async (req, res) => {
+    try {
+        const { profilePic } = req.body;
+        const userId = req.user._id;
+
+        if (!profilePic) {
+            return res.status(400).json({ message: "Profile picture is required" });
+        }
+
+        // Upload the base64 image string to Cloudinary
+        const uploadResponse = await cloudinary.uploader.upload(profilePic);
+
+        // Update the user document in database
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { profilePic: uploadResponse.secure_url },
+            { new: true } // Return the updated document
+        ).select("-password");
+
+        res.status(200).json(updatedUser);
+
+    } catch (error) {
+        console.log("Error in updateProfile controller:", error.message);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
