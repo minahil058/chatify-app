@@ -4,10 +4,14 @@ import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// Actual Logic
 router.post("/signup", signup);
 router.post("/login", login);
 router.post("/logout", logout);
+
+// Session check – called by AuthContext on every page load
+router.get("/check", protectRoute, (req, res) => {
+    res.status(200).json({ user: req.user });
+});
 
 router.put("/update-profile", protectRoute, updateProfile);
 

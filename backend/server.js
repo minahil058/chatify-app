@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.routes.js";
 import messageRoutes from "./routes/message.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 dotenv.config();
 
@@ -21,9 +22,10 @@ const PORT = process.env.PORT || 5001;
 app.use(express.json());
 app.use(cookieParser());
 
-// 1. API Routes (Inki priority sab se upar honi chahiye)
+// 1. API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/users", userRoutes);
 
 // 2. Frontend Serving Logic
 const frontendDist = path.resolve(__dirname, "../frontend/dist");// Debugging log jo Vercel dashboard mein nazar aaye ga

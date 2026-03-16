@@ -4,16 +4,232 @@ import { useAuth } from "./context/AuthContext.jsx";
 import axios from "axios";
 import "./App.css";
 
-// Placeholder pages – replace with your real components if you have them
-const HomePage = () => {
-  const { user } = useAuth();
+// ===== CHAT HOME PAGE =====
+const DEFAULT_AVATAR = (name = "?") =>
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0f4c75&color=ffffff&size=128&bold=true`;
+
+const ChatPage = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [contacts, setContacts] = React.useState([]);
+  const [activeTab, setActiveTab] = React.useState("chats"); // 'chats' | 'contacts'
+  const [selectedUser, setSelectedUser] = React.useState(null);
+  const [messages, setMessages] = React.useState([]);
+  const [newMessage, setNewMessage] = React.useState("");
+  const [isSending, setIsSending] = React.useState(false);
+  const messagesEndRef = React.useRef(null);
+
+  // Fetch all users/contacts
+  React.useEffect(() => {
+    axios.get("/api/users", { withCredentials: true })
+      .then(res => setContacts(res.data || []))
+      .catch(() => setContacts([]));
+  }, []);
+
+  // Fetch messages when a user is selected
+  React.useEffect(() => {
+    if (!selectedUser) return;
+    axios.get(`/api/messages/${selectedUser._id}`, { withCredentials: true })
+      .then(res => setMessages(res.data || []))
+      .catch(() => setMessages([]));
+  }, [selectedUser]);
+
+  // Auto-scroll to bottom on new messages
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleLogout = async () => {
+    await axios.post("/api/auth/logout", {}, { withCredentials: true }).catch(() => {});
+    logout();
+    navigate("/login");
+  };
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedUser || isSending) return;
+    const text = newMessage.trim();
+    setNewMessage("");
+    setIsSending(true);
+    const tempMsg = { _id: Date.now(), senderId: user._id, text, createdAt: new Date().toISOString(), pending: true };
+    setMessages(prev => [...prev, tempMsg]);
+    try {
+      const res = await axios.post(`/api/messages/send/${selectedUser._id}`, { text }, { withCredentials: true });
+      setMessages(prev => prev.map(m => m._id === tempMsg._id ? res.data : m));
+    } catch {
+      setMessages(prev => prev.filter(m => m._id !== tempMsg._id));
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const formatTime = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const filteredContacts = contacts; // Can add search later
+
   return (
-    <div className="page">
-      <h1>Welcome to Chatify</h1>
-      <p>{user ? `Logged in as ${user.username || user.email}` : "You are not logged in."}</p>
+    <div className="chat-root">
+      {/* ===== LEFT SIDEBAR ===== */}
+      <aside className="chat-sidebar">
+        {/* My Profile */}
+        <div className="sidebar-profile">
+          <img
+            src={user?.profilePic || DEFAULT_AVATAR(user?.fullName)}
+            alt={user?.fullName}
+            className="sidebar-avatar"
+            onError={e => { e.target.src = DEFAULT_AVATAR(user?.fullName); }}
+          />
+          <div className="sidebar-profile-info">
+            <p className="sidebar-profile-name">{user?.fullName || "You"}</p>
+            <p className="sidebar-profile-status">
+              <span className="status-dot online" /> Online
+            </p>
+          </div>
+          <button className="icon-btn" title="Logout" onClick={handleLogout}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="sidebar-tabs">
+          <button
+            className={`sidebar-tab ${activeTab === "chats" ? "active" : ""}`}
+            onClick={() => setActiveTab("chats")}
+          >Chats</button>
+          <button
+            className={`sidebar-tab ${activeTab === "contacts" ? "active" : ""}`}
+            onClick={() => setActiveTab("contacts")}
+          >Contacts</button>
+        </div>
+
+        {/* User List */}
+        <div className="sidebar-list">
+          {filteredContacts.length === 0 && (
+            <div className="sidebar-empty">No contacts yet</div>
+          )}
+          {filteredContacts.map(contact => (
+            <div
+              key={contact._id}
+              className={`sidebar-item ${selectedUser?._id === contact._id ? "active" : ""}`}
+              onClick={() => setSelectedUser(contact)}
+            >
+              <div className="sidebar-item-avatar-wrap">
+                <img
+                  src={contact.profilePic || DEFAULT_AVATAR(contact.fullName)}
+                  alt={contact.fullName}
+                  className="sidebar-item-avatar"
+                  onError={e => { e.target.src = DEFAULT_AVATAR(contact.fullName); }}
+                />
+                <span className={`status-dot ${contact.isOnline ? "online" : "offline"}`} />
+              </div>
+              <div className="sidebar-item-info">
+                <p className="sidebar-item-name">{contact.fullName}</p>
+                <p className="sidebar-item-status">{contact.isOnline ? "online" : "offline"}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* ===== MAIN CHAT PANEL ===== */}
+      <main className="chat-main">
+        {!selectedUser ? (
+          <div className="chat-empty-state">
+            <div className="chat-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <h2 className="chat-empty-title">Welcome to Chatify</h2>
+            <p className="chat-empty-sub">Select a contact to start chatting</p>
+          </div>
+        ) : (
+          <>
+            {/* Chat Header */}
+            <div className="chat-header">
+              <div className="chat-header-left">
+                <div className="chat-header-avatar-wrap">
+                  <img
+                    src={selectedUser.profilePic || DEFAULT_AVATAR(selectedUser.fullName)}
+                    alt={selectedUser.fullName}
+                    className="chat-header-avatar"
+                    onError={e => { e.target.src = DEFAULT_AVATAR(selectedUser.fullName); }}
+                  />
+                  <span className={`status-dot ${selectedUser.isOnline ? "online" : "offline"}`} />
+                </div>
+                <div>
+                  <p className="chat-header-name">{selectedUser.fullName}</p>
+                  <p className="chat-header-status">{selectedUser.isOnline ? "Online" : "Offline"}</p>
+                </div>
+              </div>
+              <button className="icon-btn" title="Close" onClick={() => setSelectedUser(null)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div className="chat-messages">
+              {messages.length === 0 && (
+                <div className="chat-no-messages">No messages yet. Say hi! 👋</div>
+              )}
+              {messages.map(msg => {
+                const isMine = msg.senderId === user?._id || msg.senderId?._id === user?._id;
+                return (
+                  <div key={msg._id} className={`chat-bubble-row ${isMine ? "mine" : "theirs"}`}>
+                    {!isMine && (
+                      <img
+                        src={selectedUser.profilePic || DEFAULT_AVATAR(selectedUser.fullName)}
+                        className="bubble-avatar"
+                        alt=""
+                        onError={e => { e.target.src = DEFAULT_AVATAR(selectedUser.fullName); }}
+                      />
+                    )}
+                    <div className={`chat-bubble ${isMine ? "bubble-mine" : "bubble-theirs"} ${msg.pending ? "bubble-pending" : ""}`}>
+                      {msg.image && <img src={msg.image} alt="attachment" className="bubble-image" />}
+                      {msg.text && <span>{msg.text}</span>}
+                      <span className="bubble-time">{formatTime(msg.createdAt)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input */}
+            <form className="chat-input-bar" onSubmit={handleSend}>
+              <input
+                type="text"
+                className="chat-input"
+                placeholder="Type your message..."
+                value={newMessage}
+                onChange={e => setNewMessage(e.target.value)}
+                disabled={isSending}
+              />
+              <button type="submit" className="chat-send-btn" disabled={isSending || !newMessage.trim()}>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                </svg>
+              </button>
+            </form>
+          </>
+        )}
+      </main>
     </div>
   );
 };
+
+const HomePage = ChatPage;
+
+
 
 const LoginPage = () => {
   const [formData, setFormData] = React.useState({
@@ -500,9 +716,7 @@ function App() {
         path="/"
         element={
           <PrivateRoute>
-            <AppLayout>
-              <HomePage />
-            </AppLayout>
+            <HomePage />
           </PrivateRoute>
         }
       />
