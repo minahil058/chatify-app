@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -19,45 +20,58 @@ const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 5001;
 
-app.use(express.json());
+// ── CORS: allow frontend domain (both local dev and Vercel) ──
+const allowedOrigins = [
+    "http://localhost:5173",
+    process.env.CLIENT_URL,          // e.g. https://chatify-app.vercel.app
+].filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow server-to-server calls (no origin) and allowed origins
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS blocked: ${origin}`));
+        }
+    },
+    credentials: true,               // required for cookie-based auth
+}));
+
+app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
-// 1. API Routes
+// ── API Routes ──
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 
-// 2. Frontend Serving Logic
-const frontendDist = path.resolve(__dirname, "../frontend/dist");// Debugging log jo Vercel dashboard mein nazar aaye ga
+// ── Frontend Serving (production) ──
+const frontendDist = path.resolve(__dirname, "../frontend/dist");
 console.log("Looking for frontend at:", frontendDist);
 
 if (fs.existsSync(path.join(frontendDist, "index.html"))) {
-    // Static files serve karein
     app.use(express.static(frontendDist));
-
-    // Baqi sari requests ko index.html par bhej dein (Frontend Routing)
     app.get("*", (req, res) => {
-        // Check taake galti se API calls yahan na phans jayein
         if (!req.path.startsWith("/api")) {
             res.sendFile(path.join(frontendDist, "index.html"));
         }
     });
 } else {
-    // Agar build fail hui ya folder na mila toh ye error nazar aaye ga
     app.get("*", (req, res) => {
         if (!req.path.startsWith("/api")) {
-            res.status(404).send(`Frontend build not found at: ${frontendDist}. Please check Vercel Build Logs.`);
+            res.status(200).json({ message: "Chatify API is running. Frontend not built yet." });
         }
     });
 }
 
-// 3. Error handler
+// ── Global Error Handler ──
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: "Something went wrong!", error: err.message });
 });
 
-// 4. Start server
+// ── Start ──
 app.listen(PORT, () => {
     console.log(`Server is running on PORT: ${PORT}`);
     connectDB();
