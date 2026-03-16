@@ -10,4 +10,9 @@ export const ENV_VARS = {
     SENDER_EMAIL: process.env.SENDER_EMAIL || "onboarding@resend.dev",
     SENDER_NAME: process.env.SENDER_NAME || "Chatify Team",
     CLIENT_URL: process.env.CLIENT_URL || "http://localhost:5173",
+    ARCJET_KEY: process.env.ARCJET_KEY,
+    ARCJET_SECRET: process.env.ARCJET_SECRET,
+    ARCJET_SITE_ID: process.env.ARCJET_SITE_ID,
+    ARCJET_SITE_SECRET: process.env.ARCJET_SITE_SECRET,
+
 };
