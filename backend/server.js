@@ -2,9 +2,6 @@ import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
 
 import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -13,66 +10,66 @@ import userRoutes from "./routes/user.routes.js";
 
 dotenv.config();
 
+// ── Guard: crash early with a clear message if critical env vars are missing
+const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET"];
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missing.length > 0) {
+    console.error("❌ Missing required environment variables:", missing.join(", "));
+    console.error("Please set them in your .env file or Vercel Environment Variables.");
+    process.exit(1);
+}
+
 const app = express();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const PORT = process.env.PORT || 5001;
 
-// ── CORS: allow frontend domain (both local dev and Vercel) ──
+// ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
     "http://localhost:5173",
-    process.env.CLIENT_URL,          // e.g. https://chatify-app.vercel.app
+    process.env.CLIENT_URL,
 ].filter(Boolean);
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow server-to-server calls (no origin) and allowed origins
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            callback(new Error(`CORS blocked: ${origin}`));
+            callback(new Error(`CORS blocked for origin: ${origin}`));
         }
     },
-    credentials: true,               // required for cookie-based auth
+    credentials: true,
 }));
 
+// ── Middleware ─────────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
-// ── API Routes ──
+// ── API Routes ─────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 
-// ── Frontend Serving (production) ──
-const frontendDist = path.resolve(__dirname, "../frontend/dist");
-console.log("Looking for frontend at:", frontendDist);
+// ── Health check (useful for debugging Vercel deployments) ────────────────────
+app.get("/api/health", (req, res) => {
+    res.status(200).json({ status: "ok", env: process.env.NODE_ENV });
+});
 
-if (fs.existsSync(path.join(frontendDist, "index.html"))) {
-    app.use(express.static(frontendDist));
-    app.get("*", (req, res) => {
-        if (!req.path.startsWith("/api")) {
-            res.sendFile(path.join(frontendDist, "index.html"));
-        }
+// ── Global Error Handler ──────────────────────────────────────────────────────
+app.use((err, req, res, next) => {
+    console.error("Server error:", err.message);
+    res.status(500).json({ message: err.message || "Internal Server Error" });
+});
+
+// ── Start (only in non-serverless environments) ───────────────────────────────
+// Vercel runs the file directly as a serverless function, no listen() needed
+// But for local dev, we start normally
+if (process.env.NODE_ENV !== "production") {
+    app.listen(PORT, () => {
+        console.log(`✅ Server running on PORT: ${PORT}`);
+        connectDB();
     });
 } else {
-    app.get("*", (req, res) => {
-        if (!req.path.startsWith("/api")) {
-            res.status(200).json({ message: "Chatify API is running. Frontend not built yet." });
-        }
-    });
+    // In production, connect to DB immediately (serverless warm-up)
+    connectDB();
 }
 
-// ── Global Error Handler ──
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: "Something went wrong!", error: err.message });
-});
-
-// ── Start ──
-app.listen(PORT, () => {
-    console.log(`Server is running on PORT: ${PORT}`);
-    connectDB();
-});
+export default app;
