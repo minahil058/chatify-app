@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
       try {
         setAuthLoading(true);
         setAuthError(null);
-        const res = await api.get("/api/auth/check");
+        const res = await api.get("/auth/check");
         if (!cancelled) {
           setUser(res.data?.user || null);
         }

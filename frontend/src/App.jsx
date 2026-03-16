@@ -22,7 +22,7 @@ const ChatPage = () => {
   // Fetch all users/contacts
   React.useEffect(() => {
     api
-      .get("/api/users")
+      .get("/users")
       .then(res => setContacts(res.data || []))
       .catch(() => setContacts([]));
   }, []);
@@ -31,7 +31,7 @@ const ChatPage = () => {
   React.useEffect(() => {
     if (!selectedUser) return;
     api
-      .get(`/api/messages/${selectedUser._id}`)
+      .get(`/messages/${selectedUser._id}`)
       .then(res => setMessages(res.data || []))
       .catch(() => setMessages([]));
   }, [selectedUser]);
@@ -42,7 +42,7 @@ const ChatPage = () => {
   }, [messages]);
 
   const handleLogout = async () => {
-    await api.post("/api/auth/logout", {}).catch(() => {});
+    await api.post("/auth/logout", {}).catch(() => {});
     logout();
     navigate("/login");
   };
@@ -56,7 +56,7 @@ const ChatPage = () => {
     const tempMsg = { _id: Date.now(), senderId: user._id, text, createdAt: new Date().toISOString(), pending: true };
     setMessages(prev => [...prev, tempMsg]);
     try {
-      const res = await api.post(`/api/messages/send/${selectedUser._id}`, { text });
+      const res = await api.post(`/messages/send/${selectedUser._id}`, { text });
       setMessages(prev => prev.map(m => m._id === tempMsg._id ? res.data : m));
     } catch {
       setMessages(prev => prev.filter(m => m._id !== tempMsg._id));
@@ -253,7 +253,7 @@ const LoginPage = () => {
     setError(null);
 
     try {
-      const res = await api.post("/api/auth/login", formData);
+      const res = await api.post("/auth/login", formData);
       login(res.data);
       navigate("/");
     } catch (err) {
@@ -413,7 +413,7 @@ const SignUpPage = () => {
     setError(null);
 
     try {
-      const res = await api.post("/api/auth/signup", formData);
+      const res = await api.post("/auth/signup", formData);
       login(res.data);
       navigate("/");
     } catch (err) {
