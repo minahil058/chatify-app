@@ -1,9 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
+import cors from "cors";
 
 import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -12,53 +10,66 @@ import userRoutes from "./routes/user.routes.js";
 
 dotenv.config();
 
+// ── Guard: crash early with a clear message if critical env vars are missing
+const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET"];
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missing.length > 0) {
+    console.error("❌ Missing required environment variables:", missing.join(", "));
+    console.error("Please set them in your .env file or Vercel Environment Variables.");
+    process.exit(1);
+}
+
 const app = express();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const PORT = process.env.PORT || 5001;
 
-app.use(express.json());
+// ── CORS ──────────────────────────────────────────────────────────────────────
+const allowedOrigins = [
+    "http://localhost:5173",
+    process.env.CLIENT_URL,
+].filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS blocked for origin: ${origin}`));
+        }
+    },
+    credentials: true,
+}));
+
+// ── Middleware ─────────────────────────────────────────────────────────────────
+app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
-// 1. API Routes
+// ── API Routes ─────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 
-// 2. Frontend Serving Logic
-const frontendDist = path.resolve(__dirname, "../frontend/dist");// Debugging log jo Vercel dashboard mein nazar aaye ga
-console.log("Looking for frontend at:", frontendDist);
+// ── Health check (useful for debugging Vercel deployments) ────────────────────
+app.get("/api/health", (req, res) => {
+    res.status(200).json({ status: "ok", env: process.env.NODE_ENV });
+});
 
-if (fs.existsSync(path.join(frontendDist, "index.html"))) {
-    // Static files serve karein
-    app.use(express.static(frontendDist));
+// ── Global Error Handler ──────────────────────────────────────────────────────
+app.use((err, req, res, next) => {
+    console.error("Server error:", err.message);
+    res.status(500).json({ message: err.message || "Internal Server Error" });
+});
 
-    // Baqi sari requests ko index.html par bhej dein (Frontend Routing)
-    app.get("*", (req, res) => {
-        // Check taake galti se API calls yahan na phans jayein
-        if (!req.path.startsWith("/api")) {
-            res.sendFile(path.join(frontendDist, "index.html"));
-        }
+// ── Start (only in non-serverless environments) ───────────────────────────────
+// Vercel runs the file directly as a serverless function, no listen() needed
+// But for local dev, we start normally
+if (process.env.NODE_ENV !== "production") {
+    app.listen(PORT, () => {
+        console.log(`✅ Server running on PORT: ${PORT}`);
+        connectDB();
     });
 } else {
-    // Agar build fail hui ya folder na mila toh ye error nazar aaye ga
-    app.get("*", (req, res) => {
-        if (!req.path.startsWith("/api")) {
-            res.status(404).send(`Frontend build not found at: ${frontendDist}. Please check Vercel Build Logs.`);
-        }
-    });
+    // In production, connect to DB immediately (serverless warm-up)
+    connectDB();
 }
 
-// 3. Error handler
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: "Something went wrong!", error: err.message });
-});
-
-// 4. Start server
-app.listen(PORT, () => {
-    console.log(`Server is running on PORT: ${PORT}`);
-    connectDB();
-});
+export default app;

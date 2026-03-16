@@ -1,10 +1,18 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import axios from "axios";
 
 import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import "./App.css";
+
+// In production (Vercel), VITE_API_URL points to the live backend.
+// In local dev, Vite proxy handles /api → localhost:5001, so base URL stays empty.
+if (import.meta.env.VITE_API_URL) {
+  axios.defaults.baseURL = import.meta.env.VITE_API_URL;
+}
+axios.defaults.withCredentials = true;
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

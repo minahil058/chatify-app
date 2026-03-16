@@ -1,7 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
-import axios from "axios";
+import { api } from "./lib/api.js";
 import "./App.css";
 
 // ===== CHAT HOME PAGE =====
@@ -21,7 +21,8 @@ const ChatPage = () => {
 
   // Fetch all users/contacts
   React.useEffect(() => {
-    axios.get("/api/users", { withCredentials: true })
+    api
+      .get("/api/users")
       .then(res => setContacts(res.data || []))
       .catch(() => setContacts([]));
   }, []);
@@ -29,7 +30,8 @@ const ChatPage = () => {
   // Fetch messages when a user is selected
   React.useEffect(() => {
     if (!selectedUser) return;
-    axios.get(`/api/messages/${selectedUser._id}`, { withCredentials: true })
+    api
+      .get(`/api/messages/${selectedUser._id}`)
       .then(res => setMessages(res.data || []))
       .catch(() => setMessages([]));
   }, [selectedUser]);
@@ -40,7 +42,7 @@ const ChatPage = () => {
   }, [messages]);
 
   const handleLogout = async () => {
-    await axios.post("/api/auth/logout", {}, { withCredentials: true }).catch(() => {});
+    await api.post("/api/auth/logout", {}).catch(() => {});
     logout();
     navigate("/login");
   };
@@ -54,7 +56,7 @@ const ChatPage = () => {
     const tempMsg = { _id: Date.now(), senderId: user._id, text, createdAt: new Date().toISOString(), pending: true };
     setMessages(prev => [...prev, tempMsg]);
     try {
-      const res = await axios.post(`/api/messages/send/${selectedUser._id}`, { text }, { withCredentials: true });
+      const res = await api.post(`/api/messages/send/${selectedUser._id}`, { text });
       setMessages(prev => prev.map(m => m._id === tempMsg._id ? res.data : m));
     } catch {
       setMessages(prev => prev.filter(m => m._id !== tempMsg._id));
@@ -251,9 +253,7 @@ const LoginPage = () => {
     setError(null);
 
     try {
-      const res = await axios.post("/api/auth/login", formData, {
-        withCredentials: true,
-      });
+      const res = await api.post("/api/auth/login", formData);
       login(res.data);
       navigate("/");
     } catch (err) {
@@ -413,9 +413,7 @@ const SignUpPage = () => {
     setError(null);
 
     try {
-      const res = await axios.post("/api/auth/signup", formData, {
-        withCredentials: true,
-      });
+      const res = await api.post("/api/auth/signup", formData);
       login(res.data);
       navigate("/");
     } catch (err) {
