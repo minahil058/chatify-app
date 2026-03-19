@@ -1,5 +1,5 @@
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
@@ -7,8 +7,7 @@ import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import userRoutes from "./routes/user.routes.js";
-
-dotenv.config();
+import { aj } from "./lib/arcjet.js";
 
 // ── Guard: crash early with a clear message if critical env vars are missing
 const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET"];
@@ -44,6 +43,36 @@ app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
 // ── API Routes ─────────────────────────────────────────────────────────────────
+// Protect ONLY signup/login from abuse (fail open if Arcjet missing/errors)
+app.use(async (req, res, next) => {
+    try {
+        const isProtectedAuthRoute =
+            req.method === "POST" &&
+            (req.path === "/api/auth/signup" || req.path === "/api/auth/login");
+
+        if (!isProtectedAuthRoute || !aj) return next();
+
+        const decision = await aj.protect(req);
+        if (decision.isDenied()) {
+            if (decision.reason.isRateLimit()) {
+                return res.status(429).json({
+                    message: "Too many requests. Please try again later.",
+                });
+            }
+
+            return res.status(403).json({
+                message: "Forbidden",
+                reason: decision.reason,
+            });
+        }
+
+        return next();
+    } catch (err) {
+        console.error("Arcjet error:", err?.message || err);
+        return next();
+    }
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);

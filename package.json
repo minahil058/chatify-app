@@ -11,6 +11,8 @@
     "dev": "nodemon backend/server.js"
   },
   "dependencies": {
+    "@arcjet/inspect": "^1.0.0-beta.10",
+    "@arcjet/node": "^1.0.0-beta.10",
     "cloudinary": "^2.9.0",
     "resend": "^6.9.3"
   },

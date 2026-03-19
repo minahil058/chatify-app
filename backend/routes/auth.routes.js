@@ -9,6 +9,10 @@ router.post("/login", login);
 router.post("/logout", logout);
 
 // Session check – called by AuthContext on every page load
+router.get("/test", (req, res) => {
+    res.status(200).json({ message: "Auth route is working!" });
+});
+
 router.get("/check", protectRoute, (req, res) => {
     res.status(200).json({ user: req.user });
 });
