@@ -2,5 +2,5 @@
   "provider": "openai",
   "base_url": "https://api.groq.com/openai/v1",
   "model": "llama-3.3-70b-versatile",
-  "api_key": "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"
+  "api_key": "PASTE_YOUR_KEY_IN_ENV_FILE"
 }
