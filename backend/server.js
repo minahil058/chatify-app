@@ -1,5 +1,5 @@
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
@@ -8,8 +8,6 @@ import authRoutes from "./routes/auth.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import { aj } from "./lib/arcjet.js";
-
-dotenv.config();
 
 // ── Guard: crash early with a clear message if critical env vars are missing
 const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET"];
@@ -56,8 +54,14 @@ app.use(async (req, res, next) => {
 
         const decision = await aj.protect(req);
         if (decision.isDenied()) {
-            return res.status(429).json({
-                message: "Too many requests",
+            if (decision.reason.isRateLimit()) {
+                return res.status(429).json({
+                    message: "Too many requests. Please try again later.",
+                });
+            }
+
+            return res.status(403).json({
+                message: "Forbidden",
                 reason: decision.reason,
             });
         }

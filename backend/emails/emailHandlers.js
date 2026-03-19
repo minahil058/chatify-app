@@ -4,9 +4,9 @@ import { ENV_VARS } from "../lib/env.js";
 
 export const sendWelcomeEmail = async (email, name) => {
     try {
-        // 1. Safety Check for API Key
-        if (!process.env.RESEND_API_KEY) {
-            console.error("Error: RESEND_API_KEY is missing in .env");
+        // 1. Safety Check for Resend Client
+        if (!resendClient) {
+            console.error("❌ Resend client not initialized. Check your RESEND_API_KEY.");
             return;
         }
 

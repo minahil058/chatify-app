@@ -2,7 +2,8 @@ import { Resend } from "resend";
 import dotenv from "dotenv";
 dotenv.config();
 
-export const resendClient = new Resend(process.env.RESEND_API_KEY);
+const apiKey = process.env.RESEND_API_KEY;
+export const resendClient = apiKey ? new Resend(apiKey) : null;
 
 export const sender = {
     email: process.env.SENDER_EMAIL || "onboarding@resend.dev",
